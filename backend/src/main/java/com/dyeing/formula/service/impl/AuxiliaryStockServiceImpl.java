@@ -47,6 +47,22 @@ public class AuxiliaryStockServiceImpl extends ServiceImpl<AuxiliaryStockMapper,
     }
 
     @Override
+    public Map<Long, BigDecimal> getStockQuantityMap(List<Long> auxiliaryIds) {
+        if (auxiliaryIds == null || auxiliaryIds.isEmpty()) {
+            return new HashMap<>();
+        }
+        LambdaQueryWrapper<AuxiliaryStock> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(AuxiliaryStock::getAuxiliaryId, auxiliaryIds);
+        List<AuxiliaryStock> stocks = this.list(wrapper);
+        return stocks.stream()
+                .collect(Collectors.toMap(
+                        AuxiliaryStock::getAuxiliaryId,
+                        AuxiliaryStock::getQuantity,
+                        BigDecimal::add
+                ));
+    }
+
+    @Override
     public void checkStockAvailability(List<DyeingFormulaDetail> details) {
         if (details == null || details.isEmpty()) {
             return;

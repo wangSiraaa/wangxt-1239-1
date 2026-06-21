@@ -35,6 +35,13 @@ export class AuxiliaryService {
       .pipe(map(res => res.data));
   }
 
+  getBatchStockQuantity(auxiliaryIds: number[]): Observable<Record<number, number>> {
+    const params = new HttpParams()
+      .set('auxiliaryIds', auxiliaryIds.join(','));
+    return this.http.get<Result<Record<number, number>>>(`${environment.apiBaseUrl}/stock/batch/quantity`, { params })
+      .pipe(map(res => res.data));
+  }
+
   save(auxiliary: Auxiliary): Observable<boolean> {
     return this.http.post<Result<boolean>>(`${environment.apiBaseUrl}/auxiliary/save`, auxiliary)
       .pipe(map(res => res.data));

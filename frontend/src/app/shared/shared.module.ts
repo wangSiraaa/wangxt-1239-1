@@ -27,13 +27,14 @@ import { NzTimelineModule } from 'ng-zorro-antd/timeline';
 import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
 import { NzProgressModule } from 'ng-zorro-antd/progress';
 import { NzGridModule } from 'ng-zorro-antd/grid';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
 
 const ZORRO_MODULES = [
   NzButtonModule, NzInputModule, NzFormModule, NzCardModule, NzTableModule,
   NzModalModule, NzSelectModule, NzMessageModule, NzTagModule, NzDatePickerModule,
   NzDescriptionsModule, NzDividerModule, NzSpaceModule, NzLayoutModule, NzMenuModule,
   NzIconModule, NzBreadCrumbModule, NzDropDownModule, NzBadgeModule, NzStepsModule,
-  NzTimelineModule, NzInputNumberModule, NzProgressModule, NzGridModule
+  NzTimelineModule, NzInputNumberModule, NzProgressModule, NzGridModule, NzAlertModule
 ];
 
 @NgModule({

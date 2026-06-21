@@ -5,15 +5,29 @@ import { NzModalService } from 'ng-zorro-antd/modal';
 import { FormulaService } from '../../services/formula.service';
 import { AuxiliaryService } from '../../services/auxiliary.service';
 import { SampleService } from '../../services/sample.service';
+import { WastewaterService } from '../../services/wastewater.service';
 import { AuthService } from '../../services/auth.service';
 import {
   FormulaDetailVO, FormulaDetailItem, FORMULA_STATUS, APPROVAL_NODE,
-  Auxiliary, SampleTest, User
+  Auxiliary, SampleTest, User, WastewaterDailyQuota
 } from '../../models';
 
 @Component({
   selector: 'app-formula-detail',
   template: `
+    <style>
+      .row-warning td {
+        background-color: #fff1f0 !important;
+      }
+      .stock-insufficient {
+        color: #ff4d4f;
+        font-weight: 600;
+      }
+      .stock-warning {
+        color: #faad14;
+        font-weight: 600;
+      }
+    </style>
     <div class="page-container">
       <div class="page-header">
         <div class="page-title">
@@ -24,9 +38,29 @@ import {
         </div>
         <div>
           <button *ngIf="!isView" nz-button nzType="default" (click)="onSave(false)">保存草稿</button>
-          <button *ngIf="!isView && isTechnician" nz-button nzType="primary" style="margin-left:8px;" (click)="onSave(true)">保存并提交</button>
+          <button *ngIf="!isView && isTechnician" nz-button nzType="primary" style="margin-left:8px;" 
+            [nzDanger]="hasInsufficientStock || isCodExceeded()"
+            (click)="onSave(true)">
+            保存并提交
+          </button>
         </div>
       </div>
+
+      <nz-alert *ngIf="!isView && hasInsufficientStock" 
+        nzType="warning" 
+        [nzMessage]="'库存不足预警'"
+        [nzDescription]="'当前配方中部分助剂库存不足，仍可保存为草稿，但无法提交和下发生产。'"
+        nzShowIcon
+        style="margin-bottom:16px;">
+      </nz-alert>
+
+      <nz-alert *ngIf="!isView && isCodExceeded()" 
+        nzType="error" 
+        [nzMessage]="'废水额度不足'"
+        [nzDescription]="'当日废水COD排放额度不足，配方提交后可能无法当日排产。'"
+        nzShowIcon
+        style="margin-bottom:16px;">
+      </nz-alert>
 
       <nz-card *ngIf="formula" style="margin-bottom:16px;">
         <nz-descriptions nzTitle="基本信息" nzBordered [nzColumn]="3">
@@ -65,6 +99,24 @@ import {
             <span style="color:#1677ff;font-weight:600;">{{ formula.estimatedCod || 0 }}</span>
             <span *ngIf="!isView" style="margin-left:8px;color:#8c8c8c;">（根据助剂明细自动计算）</span>
           </nz-descriptions-item>
+          <nz-descriptions-item nzTitle="当日废水负荷影响" nzSpan="3">
+            <ng-container *ngIf="todayQuota">
+              <span>当日COD：{{ estimatedCodKg | number:'1.2-2' }} kg / {{ todayQuota.totalCodQuota }} kg</span>
+              <nz-progress 
+                [nzPercent]="getCodPercent()" 
+                [nzStatus]="getCodStatus()" 
+                nzSize="small" 
+                style="width:300px;display:inline-block;vertical-align:middle;margin-left:16px;">
+              </nz-progress>
+              <span *ngIf="isCodExceeded()" style="color:#ff4d4f;margin-left:8px;font-weight:600;">
+                超出当日额度
+              </span>
+              <span *ngIf="!isCodExceeded() && todayQuota.remainingCodQuota" style="margin-left:8px;color:#52c41a;">
+                剩余 {{ todayQuota.remainingCodQuota | number:'1.2-2' }} kg
+              </span>
+            </ng-container>
+            <span *ngIf="!todayQuota" style="color:#bfbfbf;">加载中...</span>
+          </nz-descriptions-item>
           <nz-descriptions-item nzTitle="备注" nzSpan="3">
             <textarea *ngIf="!isView" nz-input [(ngModel)]="formula.remark" rows="2"></textarea>
             <span *ngIf="isView">{{ formula.remark || '-' }}</span>
@@ -86,6 +138,7 @@ import {
               <th>助剂</th>
               <th>类型</th>
               <th>用量(kg)</th>
+              <th>当前库存(kg)</th>
               <th>用量百分比(%)</th>
               <th>工艺阶段</th>
               <th>COD负荷(g/kg)</th>
@@ -94,7 +147,7 @@ import {
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let d of detailTable.data; let i = index">
+            <tr *ngFor="let d of detailTable.data; let i = index" [ngClass]="{'row-warning': isStockInsufficient(d.auxiliaryId!, d.dosage)}">
               <td>{{ i + 1 }}</td>
               <td>
                 <ng-container *ngIf="!isView">
@@ -111,6 +164,17 @@ import {
               <td>
                 <nz-input-number *ngIf="!isView" [(ngModel)]="d.dosage" [nzMin]="0" [nzStep]="0.01" (ngModelChange)="calcCod()"></nz-input-number>
                 <span *ngIf="isView">{{ d.dosage }}</span>
+              </td>
+              <td>
+                <ng-container *ngIf="d.auxiliaryId && d.auxiliaryId > 0">
+                  <span [ngClass]="{'stock-insufficient': isStockInsufficient(d.auxiliaryId!, d.dosage)}">
+                    {{ getStockQuantity(d.auxiliaryId!) | number:'1.2-2' }}
+                  </span>
+                  <nz-tag *ngIf="isStockInsufficient(d.auxiliaryId!, d.dosage)" nzColor="red" style="margin-left:4px;">
+                    库存不足
+                  </nz-tag>
+                </ng-container>
+                <span *ngIf="!d.auxiliaryId || d.auxiliaryId <= 0" style="color:#bfbfbf;">-</span>
               </td>
               <td>
                 <nz-input-number *ngIf="!isView" [(ngModel)]="d.dosagePercent" [nzMin]="0" [nzStep]="0.01"></nz-input-number>
@@ -133,7 +197,7 @@ import {
               </td>
             </tr>
             <tr *ngIf="!formula.details || formula.details.length===0">
-              <td colspan="9" style="text-align:center;color:#8c8c8c;">暂无数据，请点击"添加助剂"</td>
+              <td colspan="10" style="text-align:center;color:#8c8c8c;">暂无数据，请点击"添加助剂"</td>
             </tr>
           </tbody>
         </nz-table>
@@ -273,6 +337,11 @@ export class FormulaDetailComponent implements OnInit {
   FORMULA_STATUS = FORMULA_STATUS;
   APPROVAL_NODE = APPROVAL_NODE;
 
+  stockQuantityMap: Record<number, number> = {};
+  todayQuota: WastewaterDailyQuota | null = null;
+  hasInsufficientStock = false;
+  estimatedCodKg = 0;
+
   testDto: any = {
     sampleBatch: '',
     labColorL: null, labColorA: null, labColorB: null,
@@ -290,6 +359,7 @@ export class FormulaDetailComponent implements OnInit {
     private formulaService: FormulaService,
     private auxiliaryService: AuxiliaryService,
     private sampleService: SampleService,
+    private wastewaterService: WastewaterService,
     private authService: AuthService,
     private message: NzMessageService,
     private modal: NzModalService
@@ -322,6 +392,7 @@ export class FormulaDetailComponent implements OnInit {
       }
     });
     this.loadAuxList();
+    this.loadTodayQuota();
   }
 
   loadDetail(): void {
@@ -332,6 +403,8 @@ export class FormulaDetailComponent implements OnInit {
         if (!this.formula.details) this.formula.details = [];
         if (this.isView && !this.isTechnician) {
         }
+        this.refreshStock();
+        this.updateEstimatedCodKg();
       },
       error: (err) => this.message.error(err.message || '加载失败')
     });
@@ -343,6 +416,65 @@ export class FormulaDetailComponent implements OnInit {
         this.auxList = res;
       }
     });
+  }
+
+  loadTodayQuota(): void {
+    this.wastewaterService.getTodayQuota().subscribe({
+      next: (res) => {
+        this.todayQuota = res;
+      },
+      error: () => {}
+    });
+  }
+
+  refreshStock(): void {
+    if (!this.formula?.details || this.formula.details.length === 0) {
+      this.stockQuantityMap = {};
+      this.hasInsufficientStock = false;
+      return;
+    }
+    const auxIds = this.formula.details
+      .filter(d => d.auxiliaryId && d.auxiliaryId > 0)
+      .map(d => d.auxiliaryId!);
+    if (auxIds.length === 0) {
+      this.stockQuantityMap = {};
+      this.hasInsufficientStock = false;
+      return;
+    }
+    this.auxiliaryService.getBatchStockQuantity(auxIds).subscribe({
+      next: (res) => {
+        this.stockQuantityMap = res;
+        this.checkStockSufficiency();
+      },
+      error: () => {}
+    });
+  }
+
+  checkStockSufficiency(): void {
+    if (!this.formula?.details) {
+      this.hasInsufficientStock = false;
+      return;
+    }
+    let insufficient = false;
+    for (const d of this.formula.details) {
+      if (!d.auxiliaryId || !d.dosage) continue;
+      const stock = this.stockQuantityMap[d.auxiliaryId] || 0;
+      if (stock < d.dosage) {
+        insufficient = true;
+        break;
+      }
+    }
+    this.hasInsufficientStock = insufficient;
+  }
+
+  getStockQuantity(auxiliaryId: number): number {
+    return this.stockQuantityMap[auxiliaryId] || 0;
+  }
+
+  isStockInsufficient(auxiliaryId: number, dosage: number): boolean {
+    if (!auxiliaryId || !dosage) return false;
+    const stock = this.stockQuantityMap[auxiliaryId] || 0;
+    return stock < dosage;
   }
 
   onBack(): void {
@@ -360,12 +492,14 @@ export class FormulaDetailComponent implements OnInit {
       processStep: this.formula.details.length + 1,
       processStage: '染色'
     });
+    this.calcCod();
   }
 
   onRemoveDetail(index: number): void {
     if (!this.formula?.details) return;
     this.formula.details.splice(index, 1);
     this.calcCod();
+    this.refreshStock();
   }
 
   onAuxChange(d: FormulaDetailItem): void {
@@ -381,6 +515,7 @@ export class FormulaDetailComponent implements OnInit {
       }
     }
     this.calcCod();
+    this.refreshStock();
   }
 
   calcCod(): void {
@@ -392,6 +527,36 @@ export class FormulaDetailComponent implements OnInit {
       }
     }
     this.formula.estimatedCod = Number(total.toFixed(4));
+    this.updateEstimatedCodKg();
+    this.checkStockSufficiency();
+  }
+
+  updateEstimatedCodKg(): void {
+    this.estimatedCodKg = (this.formula?.estimatedCod || 0) / 1000;
+  }
+
+  getCodPercent(): number {
+    if (!this.todayQuota?.totalCodQuota || this.todayQuota.totalCodQuota <= 0) return 0;
+    const percent = (this.estimatedCodKg / this.todayQuota.totalCodQuota) * 100;
+    return Math.min(percent, 100);
+  }
+
+  getCodStatus(): 'success' | 'exception' | 'normal' | 'active' {
+    if (!this.todayQuota) return 'normal';
+    const remaining = this.todayQuota.remainingCodQuota || 0;
+    if (this.estimatedCodKg > remaining) {
+      return 'exception';
+    }
+    if (this.estimatedCodKg > remaining * 0.8) {
+      return 'active';
+    }
+    return 'success';
+  }
+
+  isCodExceeded(): boolean {
+    if (!this.todayQuota) return false;
+    const remaining = this.todayQuota.remainingCodQuota || 0;
+    return this.estimatedCodKg > remaining;
   }
 
   getSubTotal(d: FormulaDetailItem): number {
@@ -418,6 +583,21 @@ export class FormulaDetailComponent implements OnInit {
         return;
       }
     }
+    if (!andSubmit && this.hasInsufficientStock) {
+      this.modal.confirm({
+        nzTitle: '库存不足提示',
+        nzContent: '当前配方中部分助剂库存不足，仍可以保存为草稿，但无法提交和下发生产。是否继续保存草稿？',
+        nzOkText: '继续保存',
+        nzCancelText: '取消',
+        nzOnOk: () => this.doSave(false)
+      });
+      return;
+    }
+    this.doSave(andSubmit);
+  }
+
+  doSave(andSubmit: boolean): void {
+    if (!this.formula) return;
     this.formulaService.save(this.formula).subscribe({
       next: () => {
         this.message.success(andSubmit ? '保存成功' : '草稿已保存');
@@ -433,9 +613,18 @@ export class FormulaDetailComponent implements OnInit {
 
   onSubmitAfterSave(): void {
     if (!this.formula) return;
+    let content = '确认提交该配方进入审核流程？系统将自动校验禁限用助剂和库存。';
+    if (this.hasInsufficientStock) {
+      content = '<strong style="color:#faad14;">警告：当前配方中部分助剂库存不足！</strong><br/>' + content;
+    }
+    if (this.isCodExceeded()) {
+      content = '<strong style="color:#ff4d4f;">警告：当日废水COD额度不足！</strong><br/>' + content;
+    }
     this.modal.confirm({
       nzTitle: '提交配方',
-      nzContent: '确认提交该配方进入审核流程？系统将自动校验禁限用助剂和库存。',
+      nzContent: content,
+      nzOkText: '确认提交',
+      nzCancelText: '取消',
       nzOnOk: () => {
         const userId = this.currentUser?.userId || 1;
         this.formulaService.submit(this.formula!.id!, userId, this.formula!.remark).subscribe({

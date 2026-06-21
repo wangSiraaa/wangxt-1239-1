@@ -7,6 +7,10 @@ import com.dyeing.formula.vo.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/stock")
 public class AuxiliaryStockController {
@@ -25,6 +29,11 @@ public class AuxiliaryStockController {
     @GetMapping("/auxiliary/{auxiliaryId}")
     public Result<AuxiliaryStock> getByAuxiliaryId(@PathVariable Long auxiliaryId) {
         return Result.success(stockService.getByAuxiliaryId(auxiliaryId));
+    }
+
+    @GetMapping("/batch/quantity")
+    public Result<Map<Long, BigDecimal>> getBatchQuantity(@RequestParam List<Long> auxiliaryIds) {
+        return Result.success(stockService.getStockQuantityMap(auxiliaryIds));
     }
 
     @PostMapping("/save")
