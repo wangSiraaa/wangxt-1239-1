@@ -54,7 +54,7 @@ import { FormulaVO, FORMULA_STATUS, User } from '../../models';
               <td>{{ item.estimatedCod }}</td>
               <td>
                 <nz-tag [nzColor]="getStatusColor(item.status)">
-                  {{ statusLabels[item.status] || item.status }}
+                  {{ getStatusLabel(item.status) }}
                 </nz-tag>
               </td>
               <td>{{ item.creatorName }}</td>
@@ -97,7 +97,7 @@ export class FormulaListComponent implements OnInit {
   isApprover = false;
   isProductionManager = false;
 
-  statusLabels: any = FORMULA_STATUS;
+  statusLabels: { value: string; label: string }[] = [];
 
   constructor(
     private formulaService: FormulaService,
@@ -105,7 +105,12 @@ export class FormulaListComponent implements OnInit {
     private router: Router,
     private message: NzMessageService,
     private modal: NzModalService
-  ) {}
+  ) {
+    this.statusLabels = Object.keys(FORMULA_STATUS).map(key => ({
+      value: key,
+      label: FORMULA_STATUS[key]
+    }));
+  }
 
   ngOnInit(): void {
     this.currentUser = this.authService.getCurrentUser();
@@ -121,6 +126,10 @@ export class FormulaListComponent implements OnInit {
       APPROVED: 'green', PRODUCTION: 'cyan', REJECTED: 'red', OBSOLETE: 'default'
     };
     return colorMap[status] || 'default';
+  }
+
+  getStatusLabel(status: string): string {
+    return FORMULA_STATUS[status] || status;
   }
 
   loadData(): void {
@@ -198,15 +207,8 @@ export class FormulaListComponent implements OnInit {
   }
 
   onReject(id: number): void {
-    this.modal.create({
-      nzTitle: '驳回配方',
-      nzContent: '请输入驳回原因：',
-      nzComponentParams: { isEdit: true },
-      nzFooter: null,
-      nzBodyStyle: { padding: '24px' }
-    });
     const reason = prompt('请输入驳回原因：');
-    if (reason) {
+    if (reason && reason.trim()) {
       const userId = this.currentUser?.userId || 1;
       this.formulaService.reject(id, userId, reason).subscribe({
         next: () => {
@@ -215,6 +217,8 @@ export class FormulaListComponent implements OnInit {
         },
         error: (err) => this.message.error(err.message || '操作失败')
       });
+    } else if (reason !== null) {
+      this.message.warning('请输入驳回原因');
     }
   }
 

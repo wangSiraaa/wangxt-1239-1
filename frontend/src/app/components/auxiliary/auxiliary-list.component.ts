@@ -58,6 +58,71 @@ import { Auxiliary } from '../../models';
           </tbody>
         </nz-table>
       </nz-card>
+
+      <nz-modal [(nzVisible)]="editModalVisible" nzTitle="{{ editItem?.id ? '编辑助剂' : '新增助剂' }}"
+                (nzOnCancel)="editModalVisible = false" (nzOnOk)="onSave()">
+        <form *ngIf="editItem">
+          <div nz-form-item>
+            <div nz-form-label><label>助剂编码 *</label></div>
+            <div nz-form-control>
+              <input nz-input [(ngModel)]="editItem.auxCode" name="auxCode" />
+            </div>
+          </div>
+          <div nz-form-item>
+            <div nz-form-label><label>助剂名称 *</label></div>
+            <div nz-form-control>
+              <input nz-input [(ngModel)]="editItem.auxName" name="auxName" />
+            </div>
+          </div>
+          <div nz-form-item>
+            <div nz-form-label><label>类型</label></div>
+            <div nz-form-control>
+              <nz-select [(ngModel)]="editItem.auxType" name="auxType" style="width:100%;" nzAllowClear>
+                <nz-option nzValue="活性染料" nzLabel="活性染料"></nz-option>
+                <nz-option nzValue="分散染料" nzLabel="分散染料"></nz-option>
+                <nz-option nzValue="匀染剂" nzLabel="匀染剂"></nz-option>
+                <nz-option nzValue="固色剂" nzLabel="固色剂"></nz-option>
+                <nz-option nzValue="渗透剂" nzLabel="渗透剂"></nz-option>
+                <nz-option nzValue="碱剂" nzLabel="碱剂"></nz-option>
+                <nz-option nzValue="促染剂" nzLabel="促染剂"></nz-option>
+              </nz-select>
+            </div>
+          </div>
+          <div nz-form-item>
+            <div nz-form-label><label>CAS号</label></div>
+            <div nz-form-control>
+              <input nz-input [(ngModel)]="editItem.casNo" name="casNo" />
+            </div>
+          </div>
+          <div nz-form-item>
+            <div nz-form-label><label>计量单位</label></div>
+            <div nz-form-control>
+              <input nz-input [(ngModel)]="editItem.unit" name="unit" />
+            </div>
+          </div>
+          <div nz-form-item>
+            <div nz-form-label><label>COD负荷(g/kg)</label></div>
+            <div nz-form-control>
+              <nz-input-number [(ngModel)]="editItem.codPerUnit" name="codPerUnit" style="width:100%;" />
+            </div>
+          </div>
+          <div nz-form-item>
+            <div nz-form-label><label>状态</label></div>
+            <div nz-form-control>
+              <nz-select [(ngModel)]="editItem.forbiddenFlag" name="forbiddenFlag" style="width:100%;">
+                <nz-option [nzValue]="0" nzLabel="正常"></nz-option>
+                <nz-option [nzValue]="1" nzLabel="禁限用"></nz-option>
+              </nz-select>
+            </div>
+          </div>
+          <div nz-form-item *ngIf="editItem.forbiddenFlag === 1">
+            <div nz-form-label><label>禁限用原因</label></div>
+            <div nz-form-control>
+              <textarea nz-input [(ngModel)]="editItem.forbiddenReason" name="forbiddenReason" rows="2"></textarea>
+            </div>
+          </div>
+        </form>
+      </nz-modal>
     </div>
   `
 })
@@ -71,6 +136,7 @@ export class AuxiliaryListComponent implements OnInit {
   loading = false;
   isAdmin = false;
   editItem: Auxiliary | null = null;
+  editModalVisible = false;
 
   constructor(
     private auxiliaryService: AuxiliaryService,
@@ -105,76 +171,26 @@ export class AuxiliaryListComponent implements OnInit {
       auxCode: '', auxName: '', auxType: '', unit: 'kg',
       forbiddenFlag: 0, codPerUnit: 0, description: ''
     };
-    this.openEditModal();
+    this.editModalVisible = true;
   }
 
   onEdit(item: Auxiliary): void {
     this.editItem = { ...item };
-    this.openEditModal();
+    this.editModalVisible = true;
   }
 
-  openEditModal(): void {
-    this.modal.create({
-      nzTitle: this.editItem?.id ? '编辑助剂' : '新增助剂',
-      nzContent: `
-        <div nz-form>
-          <nz-form-item><nz-form-label>助剂编码 *</nz-form-label>
-            <nz-form-control><input nz-input [(ngModel)]="editItem.auxCode"/></nz-form-control></nz-form-item>
-          <nz-form-item><nz-form-label>助剂名称 *</nz-form-label>
-            <nz-form-control><input nz-input [(ngModel)]="editItem.auxName"/></nz-form-control></nz-form-item>
-          <nz-form-item><nz-form-label>类型</nz-form-label>
-            <nz-form-control>
-              <nz-select [(ngModel)]="editItem.auxType" style="width:100%;" nzAllowClear>
-                <nz-option nzValue="活性染料" nzLabel="活性染料"></nz-option>
-                <nz-option nzValue="分散染料" nzLabel="分散染料"></nz-option>
-                <nz-option nzValue="匀染剂" nzLabel="匀染剂"></nz-option>
-                <nz-option nzValue="固色剂" nzLabel="固色剂"></nz-option>
-                <nz-option nzValue="渗透剂" nzLabel="渗透剂"></nz-option>
-                <nz-option nzValue="碱剂" nzLabel="碱剂"></nz-option>
-                <nz-option nzValue="促染剂" nzLabel="促染剂"></nz-option>
-              </nz-select>
-            </nz-form-control>
-          </nz-form-item>
-          <nz-form-item><nz-form-label>CAS号</nz-form-label>
-            <nz-form-control><input nz-input [(ngModel)]="editItem.casNo"/></nz-form-control></nz-form-item>
-          <nz-form-item><nz-form-label>计量单位</nz-form-label>
-            <nz-form-control><input nz-input [(ngModel)]="editItem.unit"/></nz-form-control></nz-form-item>
-          <nz-form-item><nz-form-label>COD负荷(g/kg)</nz-form-label>
-            <nz-form-control><nz-input-number [(ngModel)]="editItem.codPerUnit" style="width:100%;"/></nz-form-control></nz-form-item>
-          <nz-form-item><nz-form-label>状态</nz-form-label>
-            <nz-form-control>
-              <nz-select [(ngModel)]="editItem.forbiddenFlag" style="width:100%;">
-                <nz-option [nzValue]="0" nzLabel="正常"></nz-option>
-                <nz-option [nzValue]="1" nzLabel="禁限用"></nz-option>
-              </nz-select>
-            </nz-form-control>
-          </nz-form-item>
-          <nz-form-item *ngIf="editItem?.forbiddenFlag===1"><nz-form-label>禁限用原因</nz-form-label>
-            <nz-form-control><textarea nz-input [(ngModel)]="editItem.forbiddenReason" rows="2"></textarea></nz-form-control></nz-form-item>
-        </div>
-      `,
-      nzComponentParams: { editItem: this.editItem },
-      nzFooter: [
-        { label: '取消', onClick: () => {} },
-        {
-          label: '保存',
-          type: 'primary',
-          onClick: () => {
-            if (!this.editItem?.auxCode || !this.editItem?.auxName) {
-              this.message.error('请填写助剂编码和名称');
-              return;
-            }
-            this.auxiliaryService.save(this.editItem!).subscribe({
-              next: () => {
-                this.message.success('保存成功');
-                this.modal.closeAll();
-                this.loadData();
-              },
-              error: (e) => this.message.error(e.message || '保存失败')
-            });
-          }
-        }
-      ]
+  onSave(): void {
+    if (!this.editItem?.auxCode || !this.editItem?.auxName) {
+      this.message.error('请填写助剂编码和名称');
+      return;
+    }
+    this.auxiliaryService.save(this.editItem!).subscribe({
+      next: () => {
+        this.message.success('保存成功');
+        this.editModalVisible = false;
+        this.loadData();
+      },
+      error: (e) => this.message.error(e.message || '保存失败')
     });
   }
 }

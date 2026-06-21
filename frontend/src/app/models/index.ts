@@ -82,6 +82,8 @@ export interface DyeingFormula {
   createTime?: string;
 }
 
+export type FormulaVO = DyeingFormula;
+
 export interface FormulaDetailVO extends DyeingFormula {
   details?: FormulaDetailItem[];
   sampleTests?: SampleTestVO[];
@@ -181,12 +183,14 @@ export interface ProductionSchedule {
   formulaId: number;
   planDate: string;
   scheduleStatus: string;
+  delayedFlag?: number;
   delayReason?: string;
   delayToDate?: string;
   actualStartTime?: string;
   actualEndTime?: string;
   machineNo?: string;
   operatorId?: number;
+  codLoad?: number;
 }
 
 export const FORMULA_STATUS: Record<string, string> = {

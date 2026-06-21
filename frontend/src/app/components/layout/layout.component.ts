@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, NavigationEnd } from '@angular/router';
+import { filter } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service';
 import { User } from '../../models';
 
@@ -8,45 +9,45 @@ import { User } from '../../models';
   template: `
     <nz-layout style="min-height:100vh;">
       <nz-sider nzCollapsible nzWidth="220">
-        <div style="height:64px;display:flex;align-items:center;justify-content:center;background:#001529;">
-          <span style="color:#fff;font-size:16px;font-weight:600;">印染配方管理</span>
+        <div class="logo">
+          <span>印染配方管理</span>
         </div>
-        <ul nz-menu nzTheme="dark" nzMode="inline" [nzSelectedKeys]="[selectedKey]" (nzClick)="onMenuClick($event)">
-          <li nz-menu-item nzMatchRouter nzMatchRouterExact key="/formula">
-            <i nz-icon nzType="file-text"></i>
+        <ul nz-menu nzTheme="dark" nzMode="inline">
+          <li nz-menu-item nzMatchRouter [routerLink]="['/formula']">
+            <i nz-icon nzType="file-text" nzTheme="outline"></i>
             <span>配方管理</span>
           </li>
-          <li nz-menu-item nzMatchRouter key="/sample">
-            <i nz-icon nzType="experiment"></i>
+          <li nz-menu-item nzMatchRouter [routerLink]="['/sample']">
+            <i nz-icon nzType="experiment" nzTheme="outline"></i>
             <span>小样测试</span>
           </li>
-          <li nz-menu-item nzMatchRouter key="/auxiliary">
-            <i nz-icon nzType="database"></i>
+          <li nz-menu-item nzMatchRouter [routerLink]="['/auxiliary']">
+            <i nz-icon nzType="database" nzTheme="outline"></i>
             <span>助剂档案</span>
           </li>
-          <li nz-menu-item nzMatchRouter key="/stock">
-            <i nz-icon nzType="stock"></i>
+          <li nz-menu-item nzMatchRouter [routerLink]="['/stock']">
+            <i nz-icon nzType="stock" nzTheme="outline"></i>
             <span>库存管理</span>
           </li>
-          <li nz-menu-item nzMatchRouter key="/wastewater">
-            <i nz-icon nzType="cloud"></i>
+          <li nz-menu-item nzMatchRouter [routerLink]="['/wastewater']">
+            <i nz-icon nzType="cloud" nzTheme="outline"></i>
             <span>废水排放</span>
           </li>
-          <li nz-menu-item nzMatchRouter key="/schedule">
-            <i nz-icon nzType="schedule"></i>
+          <li nz-menu-item nzMatchRouter [routerLink]="['/schedule']">
+            <i nz-icon nzType="schedule" nzTheme="outline"></i>
             <span>生产排产</span>
           </li>
         </ul>
       </nz-sider>
       <nz-layout>
-        <nz-header style="background:#fff;padding:0 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #f0f0f0;">
+        <nz-header class="header">
           <nz-breadcrumb>
             <nz-breadcrumb-item>首页</nz-breadcrumb-item>
             <nz-breadcrumb-item>{{ pageTitle }}</nz-breadcrumb-item>
           </nz-breadcrumb>
-          <div style="display:flex;align-items:center;gap:16px;">
-            <span>{{ currentUser?.realName }}（{{ currentUser?.roleName }}）</span>
-            <button nz-button nzType="link" (click)="onLogout()">退出登录</button>
+          <div class="user-info">
+            <span class="user-name">{{ currentUser?.realName }}（{{ currentUser?.roleName }}）</span>
+            <a class="logout-link" (click)="onLogout()">退出登录</a>
           </div>
         </nz-header>
         <nz-content style="padding:24px;">
@@ -54,11 +55,45 @@ import { User } from '../../models';
         </nz-content>
       </nz-layout>
     </nz-layout>
-  `
+  `,
+  styles: [`
+    .logo {
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #001529;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .header {
+      background: #fff;
+      padding: 0 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .user-name {
+      color: #1f1f1f;
+    }
+    .logout-link {
+      color: #1677ff;
+      cursor: pointer;
+    }
+    .logout-link:hover {
+      color: #4096ff;
+    }
+  `]
 })
 export class LayoutComponent implements OnInit {
   currentUser: User | null = null;
-  selectedKey = '/formula';
   pageTitle = '配方管理';
 
   private titleMap: Record<string, string> = {
@@ -74,17 +109,15 @@ export class LayoutComponent implements OnInit {
 
   ngOnInit(): void {
     this.currentUser = this.authService.getCurrentUser();
-    const url = this.router.url.split('?')[0];
-    this.selectedKey = url;
-    this.pageTitle = this.titleMap[url] || '配方管理';
+    this.updateTitle(this.router.url);
+    this.router.events
+      .pipe(filter(e => e instanceof NavigationEnd))
+      .subscribe(e => this.updateTitle((e as NavigationEnd).urlAfterRedirects));
   }
 
-  onMenuClick(event: any): void {
-    const key = event.item?.keys?.[0] || event.key;
-    if (key) {
-      this.selectedKey = key;
-      this.pageTitle = this.titleMap[key] || '';
-    }
+  private updateTitle(url: string): void {
+    const path = '/' + url.split('/').filter(Boolean)[1];
+    this.pageTitle = this.titleMap[path] || '配方管理';
   }
 
   onLogout(): void {

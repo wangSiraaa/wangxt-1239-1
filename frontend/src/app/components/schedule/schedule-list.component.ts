@@ -11,6 +11,7 @@ import { ProductionSchedule, FORMULA_STATUS } from '../../models';
         <nz-range-picker [(ngModel)]="dateRange" (ngModelChange)="onSearch()"></nz-range-picker>
         <nz-select [(ngModel)]="statusFilter" style="width:160px;" nzAllowClear nzPlaceHolder="排产状态" (ngModelChange)="onSearch()">
           <nz-option nzValue="SCHEDULED" nzLabel="已排产"></nz-option>
+          <nz-option nzValue="DELAYED" nzLabel="已延期"></nz-option>
           <nz-option nzValue="PRODUCING" nzLabel="生产中"></nz-option>
           <nz-option nzValue="COMPLETED" nzLabel="已完成"></nz-option>
           <nz-option nzValue="CANCELLED" nzLabel="已取消"></nz-option>
@@ -36,7 +37,7 @@ import { ProductionSchedule, FORMULA_STATUS } from '../../models';
             <tr *ngFor="let item of table.data">
               <td>{{ item.scheduleNo }}</td>
               <td>配方#{{ item.formulaId }}</td>
-              <td>{{ item.scheduleDate }}</td>
+              <td>{{ item.planDate }}</td>
               <td>
                 <nz-tag [nzColor]="item.delayedFlag===1 ? 'orange' : 'green'">
                   {{ item.delayedFlag===1 ? '已延期' : '正常' }}
@@ -89,6 +90,7 @@ export class ScheduleListComponent implements OnInit {
   statusColor(status: string): string {
     switch (status) {
       case 'SCHEDULED': return 'blue';
+      case 'DELAYED': return 'orange';
       case 'PRODUCING': return 'processing';
       case 'COMPLETED': return 'green';
       case 'CANCELLED': return 'default';
